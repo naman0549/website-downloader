@@ -13,16 +13,21 @@ import { downloadAsset } from "./assets.js";
  * @param {string} pageUrl - the page to download
  * @param {string} outputDir - folder to write the offline copy into
  * @param {(info: {stage:string, current?:number, total?:number, label?:string}) => void} onProgress
+ * @param {{ html?: string, timeout?: number }} [options] - pass `html` to skip the
+ *   internal fetch (e.g. when it was already obtained via a headless-browser render)
  */
-export async function downloadWebsite(pageUrl, outputDir, onProgress = () => {}) {
+export async function downloadWebsite(pageUrl, outputDir, onProgress = () => {}, options = {}) {
   fs.mkdirSync(outputDir, { recursive: true });
 
-  onProgress({ stage: "fetch-html", label: pageUrl });
-  const htmlRes = await axios.get(pageUrl, {
-    timeout: 20000,
-    headers: { "User-Agent": "Mozilla/5.0 (compatible; WebsiteDownloader/1.0)" },
-  });
-  const html = htmlRes.data;
+  let html = options.html;
+  if (!html) {
+    onProgress({ stage: "fetch-html", label: pageUrl });
+    const htmlRes = await axios.get(pageUrl, {
+      timeout: options.timeout || 20000,
+      headers: { "User-Agent": "Mozilla/5.0 (compatible; WebsiteDownloader/1.0)" },
+    });
+    html = htmlRes.data;
+  }
 
   const { $, assets, inlineStyleUrls } = parseHtml(html);
 

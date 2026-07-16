@@ -5,11 +5,12 @@ import { downloadWebsite } from "./server/downloader.js";
 import { zipDirectory } from "./server/zip.js";
 
 function parseArgs(argv) {
-  const args = { zip: false };
+  const args = { zip: false, render: false };
   const positional = [];
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (a === "--zip") args.zip = true;
+    else if (a === "--render") args.render = true;
     else if (a === "--out" || a === "-o") args.out = argv[++i];
     else positional.push(a);
   }
@@ -18,11 +19,12 @@ function parseArgs(argv) {
 }
 
 async function main() {
-  const { url, out, zip } = parseArgs(process.argv.slice(2));
+  const { url, out, zip, render } = parseArgs(process.argv.slice(2));
 
   if (!url) {
-    console.error("Usage: node cli.js <url> [--out <folder>] [--zip]");
+    console.error("Usage: node cli.js <url> [--out <folder>] [--zip] [--render]");
     console.error("Example: node cli.js https://example.com --out website --zip");
+    console.error("Example (React/Vue/JS-heavy site): node cli.js https://app.example.com --render");
     process.exit(1);
   }
 
@@ -76,7 +78,18 @@ async function main() {
     }
   };
 
-  const result = await downloadWebsite(url, outputDir, onProgress);
+  let html;
+  let effectiveUrl = url;
+  if (render) {
+    console.log("Launching headless browser to render JavaScript...");
+    const { renderPage } = await import("./server/render.js");
+    const rendered = await renderPage(url);
+    html = rendered.html;
+    effectiveUrl = rendered.finalUrl;
+    console.log("Rendered page captured. Downloading assets...\n");
+  }
+
+  const result = await downloadWebsite(effectiveUrl, outputDir, onProgress, { html });
 
   console.log(
     `\nSaved ${result.downloadedAssets}/${result.totalAssets} assets.\nHTML: ${result.htmlPath}`

@@ -13,7 +13,7 @@ npm install
 ## Usage
 
 ```bash
-node cli.js <url> [--out <folder>] [--zip]
+node cli.js <url> [--out <folder>] [--zip] [--render]
 ```
 
 Examples:
@@ -21,7 +21,39 @@ Examples:
 ```bash
 node cli.js https://example.com
 node cli.js https://example.com --out my-site --zip
+
+# For React / Vue / Angular / Next.js / other JS-rendered sites:
+node cli.js https://app.example.com --render
 ```
+
+### `--render` (for React/Vue/JS-heavy sites)
+
+Plain static sites send fully-built HTML, so the normal mode (a simple HTTP
+fetch) works fine. Sites built with React/Vue/Angular/etc. instead send an
+almost-empty shell (like `<div id="root"></div>`) and build the real page
+with JavaScript *after* it loads in a browser — a plain HTTP fetch never
+sees that content.
+
+`--render` launches headless Chromium via Playwright, actually loads the
+page like a real browser, waits for network activity to settle, scrolls
+once to trigger lazy-loaded content, then hands the fully rendered HTML to
+the same download/rewrite pipeline used for static sites.
+
+One-time setup before using `--render`:
+
+```bash
+npx playwright install chromium
+```
+
+Caveats even with `--render`:
+- You get a **snapshot** of what loaded during the render — content that
+  only appears after a user clicks, logs in, or scrolls further won't be
+  captured.
+- Sites that keep fetching data from APIs as you interact (infinite
+  scroll, live dashboards) won't be a fully working offline app — API
+  calls made by the downloaded JS bundle will fail once offline, since
+  there's no backend to answer them.
+- Some sites detect and block headless browsers.
 
 If `--out` is omitted, the folder is named after the site's hostname.
 Pass `--zip` to also produce `<folder>.zip`.
