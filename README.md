@@ -1,109 +1,307 @@
-# Website Downloader
+# 🌐 Website Downloader
 
-Downloads a webpage together with its CSS, JS, images, videos, fonts, and
-icons, rewrites all the links to point at the local copies, and saves a
-folder (optionally zipped) that opens and works offline.
+Download an entire website for offline viewing.
 
-## Setup
+This tool downloads a webpage along with all of its assets—including CSS, JavaScript, images, videos, fonts, icons, and audio files—then automatically rewrites all asset links so everything works locally without an internet connection.
+
+> Perfect for creating offline copies of websites, testing layouts locally, learning frontend code, or archiving static webpages.
+
+---
+
+## ✨ Features
+
+- 📄 Downloads HTML pages
+- 🎨 Downloads CSS files
+- ⚡ Downloads JavaScript files
+- 🖼 Downloads images
+- 🎥 Downloads videos
+- 🔊 Downloads audio files
+- 🔤 Downloads fonts
+- 🖼 Downloads favicons and icons
+- 🔗 Automatically rewrites asset URLs
+- 📦 Optional ZIP export
+- ⚛ Supports JavaScript-rendered websites using Playwright (`--render`)
+- 📁 Organizes assets into separate folders
+- 📊 Live download progress
+
+---
+
+# Installation
+
+Clone the repository and install dependencies.
 
 ```bash
+git clone <repo-url>
+cd Website-downloader
 npm install
 ```
 
-## Usage
+---
+
+# Usage
 
 ```bash
-node cli.js <url> [--out <folder>] [--zip] [--render]
+node cli.js <url> [options]
 ```
 
-Examples:
+### Options
+
+| Option | Description |
+|---------|-------------|
+| `--out <folder>` | Output folder name |
+| `--zip` | Create a ZIP archive after downloading |
+| `--render` | Render JavaScript using Playwright before downloading |
+
+---
+
+## Examples
+
+Download a normal website:
 
 ```bash
 node cli.js https://example.com
-node cli.js https://example.com --out my-site --zip
+```
 
-# For React / Vue / Angular / Next.js / other JS-rendered sites:
+Download and save into a custom folder:
+
+```bash
+node cli.js https://example.com --out my-site
+```
+
+Download and automatically create a ZIP archive:
+
+```bash
+node cli.js https://example.com --zip
+```
+
+Download a React, Vue, Angular, or Next.js website:
+
+```bash
 node cli.js https://app.example.com --render
 ```
 
-### `--render` (for React/Vue/JS-heavy sites)
+---
 
-Plain static sites send fully-built HTML, so the normal mode (a simple HTTP
-fetch) works fine. Sites built with React/Vue/Angular/etc. instead send an
-almost-empty shell (like `<div id="root"></div>`) and build the real page
-with JavaScript *after* it loads in a browser — a plain HTTP fetch never
-sees that content.
+# JavaScript Rendering (`--render`)
 
-`--render` launches headless Chromium via Playwright, actually loads the
-page like a real browser, waits for network activity to settle, scrolls
-once to trigger lazy-loaded content, then hands the fully rendered HTML to
-the same download/rewrite pipeline used for static sites.
+Modern frameworks like:
 
-One-time setup before using `--render`:
+- React
+- Vue
+- Angular
+- Next.js
+- Nuxt
+- SvelteKit
+
+usually send an almost empty HTML page and generate the real content using JavaScript.
+
+A normal HTTP request only receives something like:
+
+```html
+<div id="root"></div>
+```
+
+Using the `--render` option launches a headless Chromium browser through **Playwright**, allowing the page to fully load before downloading.
+
+The downloader will:
+
+- Launch Chromium
+- Load the webpage
+- Wait for network activity to finish
+- Scroll once to trigger lazy-loaded assets
+- Capture the fully rendered HTML
+- Download all discovered resources
+
+---
+
+## Playwright Setup
+
+Playwright only needs to be installed once.
 
 ```bash
 npx playwright install chromium
 ```
 
-Caveats even with `--render`:
-- You get a **snapshot** of what loaded during the render — content that
-  only appears after a user clicks, logs in, or scrolls further won't be
-  captured.
-- Sites that keep fetching data from APIs as you interact (infinite
-  scroll, live dashboards) won't be a fully working offline app — API
-  calls made by the downloaded JS bundle will fail once offline, since
-  there's no backend to answer them.
-- Some sites detect and block headless browsers.
+---
 
-If `--out` is omitted, the folder is named after the site's hostname.
-Pass `--zip` to also produce `<folder>.zip`.
-
-## Output structure
+# Output Structure
 
 ```
 website/
+│
 ├── index.html
 ├── css/
 ├── js/
 ├── images/
-├── fonts/
 ├── videos/
-└── audio/
+├── audio/
+├── fonts/
+└── icons/
 ```
 
-All `<link href>`, `<script src>`, `<img src>`, `srcset`, inline
-`style="background:url(...)"`, and CSS `url(...)` references (including
-`@font-face` and `background-image` inside downloaded `.css` files) are
-rewritten to the local relative paths.
+Every downloaded asset is automatically linked from the local HTML.
 
-## How it works
+You can simply open:
 
-1. **server/downloader.js** – fetches the HTML, orchestrates asset
-   discovery/download, and writes the final rewritten HTML.
-2. **server/parser.js** – uses Cheerio to find every asset-referencing tag
-   and attribute in the HTML, plus `url(...)` refs inside `<style>` and
-   `style=""`.
-3. **server/assets.js** – downloads a single asset with axios, guesses its
-   type by extension/content-type, and saves it into the right subfolder
-   with a collision-safe filename.
-4. **server/rewrite.js** – resolves relative URLs against the page's base
-   URL and rewrites `url(...)` references inside CSS text.
-5. **server/zip.js** – zips the output folder with `archiver`.
-6. **cli.js** – command-line interface with a live progress bar
-   (`cli-progress`).
+```
+index.html
+```
 
-## Limitations
+inside your browser to browse the website offline.
 
-This is a static, single-page downloader. It will **not** fully work on
-sites that:
-- Render their content with client-side JavaScript (React/Vue apps, etc.)
-- Require a login/session to load resources
-- Load data from APIs after the page runs
-- Stream media rather than serving downloadable files
-- Actively block automated scraping
+---
 
-For JS-rendered pages, swap the `axios.get` HTML fetch in
-`server/downloader.js` for a headless browser (Playwright/Puppeteer) that
-renders the page first, then feed the rendered HTML into the same
-parsing/downloading pipeline. Multi-page crawling can be added by queuing
-same-origin links found in each downloaded page.
+# How It Works
+
+```
+Website
+      │
+      ▼
+ Download HTML
+      │
+      ▼
+ Parse Assets
+      │
+      ▼
+ Download CSS
+ Download JS
+ Download Images
+ Download Videos
+ Download Fonts
+ Download Icons
+      │
+      ▼
+ Rewrite URLs
+      │
+      ▼
+ Save Offline Website
+      │
+      ▼
+ Optional ZIP Archive
+```
+
+---
+
+# Project Structure
+
+```
+server/
+│
+├── downloader.js
+├── parser.js
+├── assets.js
+├── rewrite.js
+├── zip.js
+
+cli.js
+```
+
+### `server/downloader.js`
+
+Downloads the webpage, coordinates asset discovery, and generates the final offline version.
+
+### `server/parser.js`
+
+Parses HTML using **Cheerio** and discovers all downloadable resources.
+
+### `server/assets.js`
+
+Downloads individual assets, determines their type, and stores them in the correct folder.
+
+### `server/rewrite.js`
+
+Converts every remote URL into a local relative path.
+
+### `server/zip.js`
+
+Creates a ZIP archive of the downloaded website.
+
+### `cli.js`
+
+Provides the command-line interface with a live progress bar.
+
+---
+
+# Supported Assets
+
+✅ HTML
+
+✅ CSS
+
+✅ JavaScript
+
+✅ Images
+
+✅ SVG
+
+✅ Fonts
+
+✅ Icons
+
+✅ Audio
+
+✅ Video
+
+✅ CSS `url(...)`
+
+✅ `@font-face`
+
+✅ Inline styles
+
+✅ `background-image`
+
+✅ `srcset`
+
+✅ Relative URLs
+
+✅ Absolute URLs
+
+---
+
+# Limitations
+
+This tool downloads **static snapshots** of websites.
+
+Some websites may not work perfectly offline.
+
+Examples include:
+
+- Login-protected websites
+- Infinite scrolling pages
+- Live dashboards
+- Streaming media
+- Pages requiring API requests
+- Sites protected by anti-bot systems
+
+Even with `--render`, only the content visible during rendering is downloaded.
+
+Dynamic interactions after page load (clicks, forms, user sessions, etc.) are **not** automatically captured.
+
+---
+
+# Future Improvements
+
+- Multi-page website crawling
+- Download entire domains
+- Cookie/session support
+- Login support
+- Sitemap crawling
+- Retry failed downloads
+- Parallel downloads
+- Resume interrupted downloads
+- Download statistics
+- Config file support
+
+---
+
+# Disclaimer
+
+This tool is intended for educational purposes, offline backups, testing, and archiving publicly accessible websites.
+
+Always respect website terms of service, robots.txt policies where applicable, and copyright laws before downloading content.
+
+---
+
+# License
+
+MIT License
